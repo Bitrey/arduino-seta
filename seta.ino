@@ -1,26 +1,6 @@
 #include <ArduinoJson.h>
 #include <Ethernet.h>
-// #include <MemoryFree.h>
 #include <SPI.h>
-
-// MemoryFree
-#ifdef __arm__
-// should use uinstd.h to define sbrk but Due causes a conflict
-extern "C" char *sbrk(int incr);
-#else   // __ARM__
-extern char *__brkval;
-#endif  // __arm__
-
-int freeMemory() {
-    char top;
-#ifdef __arm__
-    return &top - reinterpret_cast<char *>(sbrk(0);
-#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
-    return &top - __brkval;
-#else   // __arm__
-    return __brkval ? &top - __brkval : &top - __malloc_heap_start;
-#endif  // __arm__
-}
 
 //#define CODICE_FERMATA "MO2076"
 //#define FERMATA_OPPOSTA "si"
@@ -54,14 +34,14 @@ void initializeLCD() {
 void initializeSerial() {
     Serial.begin(9600);
     while (!Serial) continue;
-    Serial.println("Comunicazione seriale stabilita");
+    Serial.println(F("Comunicazione seriale stabilita"));
 }
 
 // Initialize internet connection via ethernet
 void initializeEthernet() {
     byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
     if (!Ethernet.begin(mac)) {
-        Serial.println("Failed to configure Ethernet");
+        Serial.println(F("Failed to configure Ethernet"));
         return;
     }
 }
@@ -70,11 +50,11 @@ void initializeEthernet() {
 void connectToServer() {
     client.setTimeout(10000);
     if (!client.connect("setaapi2.bitrey.it", 80)) {
-        Serial.println("Connection failed");
+        Serial.println(F("Connection failed"));
         return;
     }
 
-    //  Serial.println("Connected to server!");
+    //  Serial.println(F("Connected to server!"));
 }
 
 // Check HTTP status
@@ -83,7 +63,7 @@ void checkHttpStatus() {
     client.readBytesUntil('\r', status, sizeof(status));
     // It should be "HTTP/1.0 200 OK" or "HTTP/1.1 200 OK"
     if (strcmp(status + 9, "200 OK") != 0) {
-        Serial.print("Unexpected response: ");
+        Serial.print(F("Unexpected response: "));
         Serial.println(status);
         return;
     }
@@ -96,7 +76,7 @@ void makeRequest(char *url) {
     client.println(F("Host: setaapi2.bitrey.it"));
     client.println(F("Connection: close"));
     if (client.println() == 0) {
-        Serial.println("Failed to send request");
+        Serial.println(F("Failed to send request"));
         return;
     }
 }
@@ -105,7 +85,7 @@ void makeRequest(char *url) {
 void skipHttpHeaders() {
     char endOfHeaders[] = "\r\n\r\n";
     if (!client.find(endOfHeaders)) {
-        Serial.println("Invalid response");
+        Serial.println(F("Invalid response"));
         return;
     }
 }
@@ -135,7 +115,7 @@ void setup() {
 
     // Allocate the JSON document
     // Use arduinojson.org/v6/assistant to compute the capacity.
-    const size_t capacity = 100;
+    const PROGMEM size_t capacity = 100;
     //  JSON_OBJECT_SIZE(2) + 40;
 
     StaticJsonDocument<capacity> PROGMEM doc;
@@ -143,7 +123,7 @@ void setup() {
     // Parse JSON object
     DeserializationError error = deserializeJson(doc, client);
     if (error) {
-        Serial.print("deserializeJson() failed: ");
+        Serial.print(F("deserializeJson() failed: "));
         Serial.println(error.c_str());
         return;
     }
@@ -154,9 +134,9 @@ void setup() {
     strcpy(oraAttuale, doc["orario"]);
     //  nomeFermata = doc["nome"];
     //  Calcola centro
-    Serial.println("Nome fermata:");
+    Serial.println(F("Nome fermata:"));
     Serial.println(nomeFermata);
-    Serial.println("Orario:");
+    Serial.println(F("Orario:"));
     Serial.println(oraAttuale);
     lcd.setCursor(cursoreFermata(), 0);
     lcd.print(nomeFermata);
@@ -171,78 +151,74 @@ void setup() {
 
 void loop() {
     // DEBUG
-    Serial.println("mo mi connetto al server");
+    Serial.println(F("mo mi connetto al server"));
     // Connect to HTTP server
     connectToServer();
     // DEBUG
-    Serial.println("OK! ora aspettiamo POI parte richiesta");
+    Serial.println(F("OK! ora aspettiamo POI parte richiesta"));
     delay(1000);
 
     // DEBUG
-    // Serial.println("ok, ora richiesto");
+    // Serial.println(F("ok, ora richiesto"));
 
     // Make request
     //  makeRequest("/codice/MO2076");
     // Do this until URL is fixed
     // DEBUG
-    Serial.println("ora FACCIAMO RICHIESTA");
+    Serial.println(F("ora FACCIAMO RICHIESTA"));
     client.println(F("GET /corse/mo/MO2076?corseFermataOpposta=si HTTP/1.0"));
     client.println(F("Host: setaapi2.bitrey.it"));
     client.println(F("Connection: close"));
     if (client.println() == 0) {
-        Serial.println("Failed to send request");
+        Serial.println(F("Failed to send request"));
         return;
     }
     // DEBUG
-    Serial.println("FATTO!! wait poi check http status");
+    Serial.println(F("FATTO!! wait poi check http status"));
     delay(1000);
 
     // DEBUG
-    // Serial.println("checking http status!");
+    // Serial.println(F("checking http status!"));
 
     // Check HTTP status
     checkHttpStatus();
     // DEBUG
-    Serial.println("CONTROLLATO, ora wait poi headers");
+    Serial.println(F("CONTROLLATO, ora wait poi headers"));
     delay(1000);
 
     // DEBUG
-    // Serial.println("skipping http headers!");
+    // Serial.println(F("skipping http headers!"));
 
     // Skip HTTP headers
     skipHttpHeaders();
     // DEBUG
-    Serial.println("fatto, freeMemory poi allocazione freeMemory()=");
-    Serial.println(freeMemory());
+    Serial.println(F("fatto, poi allocazione"));
     delay(1000);
 
     // DEBUG
-    // Serial.println("clearing lcd!");F
+    // Serial.println(F("clearing lcd!"));
 
     // Allocate the JSON document
     // Use arduinojson.org/v6/assistant to compute the capacity.
-    const size_t capacity = 600;
+    const PROGMEM size_t capacity = 600;
 
     StaticJsonDocument<capacity> PROGMEM doc;
-
-    Serial.println("Allocazione andata! freeMemory()=");
-    Serial.println(freeMemory());
 
     // Parse JSON object
     DeserializationError error = deserializeJson(doc, client);
     if (error) {
-        Serial.print("deserializeJson() failed: ");
+        Serial.print(F("deserializeJson() failed: "));
         Serial.println(error.c_str());
         return;
     }
 
     // DEBUG
-    // Serial.println("allocated, now showing");
+    // Serial.println(F("allocated, now showing"));
 
     // Viene impostato a vero se qualche autobus viene stampato
     bool noBuses = true;
     // DEBUG
-    Serial.println("allocato, ora loopo e clearo lcd");
+    Serial.println(F("allocato, ora loopo e clearo lcd"));
     delay(1000);
 
     lcd.clear();
@@ -251,12 +227,12 @@ void loop() {
     for (int i = 0; i < arr.size(); i++) {
         JsonObject bus = arr[i];
 
-        const char *linea = bus["linea"];
-        const char *destinazione = bus["destinazione"];
-        const char *pianificato = bus["pianificato"];
-        const char tipoLinea = bus["tipo_linea"];
-        const int minArrivo = bus["min_all_arrivo_val"];
-        const char *tempoReale = bus["temporeale"];
+        const char PROGMEM *linea = bus["linea"];
+        const char PROGMEM *destinazione = bus["destinazione"];
+        const char PROGMEM *pianificato = bus["pianificato"];
+        const char PROGMEM tipoLinea = bus["tipo_linea"];
+        const int PROGMEM minArrivo = bus["min_all_arrivo_val"];
+        const char PROGMEM *tempoReale = bus["temporeale"];
 
         if (!linea || strlen(linea) == 0) { /* continue ; */
             //      DEBUG
@@ -267,11 +243,11 @@ void loop() {
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print(linea);
-        //    Serial.println(strlen(destinazione);
+        //    Serial.println(strlen(destinazione));
         lcd.setCursor(strlen(linea) + 1, 0);
         //    const char destSubstr[16];
         //    strncpy(destSubstr, destinazione, strlen(linea) + 15 -
-        //    strlen(destinazione);
+        //    strlen(destinazione));
         lcd.print(destinazione);
         if (minArrivo != 9999) {
             lcd.setCursor(0, 1);
@@ -289,19 +265,19 @@ void loop() {
         //    lcd.setCursor(11, 1);
         //    lcd.print(minArrivo != 9999 ? tempoReale : "N/A");
 
-        Serial.println("*************");
-        Serial.println("Linea:");
+        Serial.println(F("*************"));
+        Serial.println(F("Linea:"));
         Serial.println(linea);
-        //    Serial.println(sizeolinea);
-        Serial.println("Destinazione:");
+        //    Serial.println(sizeof(linea));
+        Serial.println(F("Destinazione:"));
         Serial.println(destinazione);
-        Serial.println("Pianificato:");
+        Serial.println(F("Pianificato:"));
         Serial.println(pianificato);
         if (minArrivo != 9999) {
-            Serial.println("Tempo reale:");
+            Serial.println(F("Tempo reale:"));
             Serial.println(tempoReale);
         } else {
-            Serial.println("Tempo reale:");
+            Serial.println(F("Tempo reale:"));
             Serial.println("sconosciuto");
         }
 
@@ -320,11 +296,11 @@ void loop() {
         lcd.setCursor(0, 1);
         lcd.print("Nessuna corsa");
         // DEBUG
-        Serial.println("Nessuna corsa");
+        Serial.println(F("Nessuna corsa"));
     }
 
     // DEBUG
-    Serial.println("Dimensione array");
+    Serial.println(F("Dimensione array"));
     Serial.println(arr.size());
 
     delay(1000);
