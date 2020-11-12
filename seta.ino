@@ -2,8 +2,8 @@
 #include <Ethernet.h>
 #include <SPI.h>
 
-#define CODICE_FERMATA "MO506"
-#define FERMATA_OPPOSTA "si"
+// const PROGMEM char *CODICE_FERMATA = "MO2076";
+// const PROGMEM char *FERMATA_OPPOSTA = "si";
 
 #include <LiquidCrystal_I2C.h>
 
@@ -13,34 +13,6 @@ EthernetClient client;
 
 char nomeFermata[32];
 char oraAttuale[8];
-
-// Initialize LCD screen
-void initializeLCD() {
-    // Initialize LCD Display
-    lcd.init();
-    lcd.backlight();
-
-    lcd.setCursor(2, 0);
-    lcd.print("SETA S.p.A.");
-    lcd.setCursor(1, 1);
-    lcd.print("Caricamento...");
-}
-
-// Initialize Serial communications
-void initializeSerial() {
-    Serial.begin(9600);
-    while (!Serial) continue;
-    Serial.println("Comunicazione seriale stabilita");
-}
-
-// Initialize internet connection via ethernet
-void initializeEthernet() {
-    byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-    if (!Ethernet.begin(mac)) {
-        Serial.println(F("Failed to configure Ethernet"));
-        return;
-    }
-}
 
 // Connect to HTTP server
 void connectToServer() {
@@ -78,17 +50,36 @@ int cursoreFermata() {
     return strlen(nomeFermata) < 16 ? (16 - strlen(nomeFermata)) / 2 : 0;
 }
 
+bool hasStarted = false;
+
 void setup() {
-    initializeLCD();
+    // Initialize LCD Display
+    lcd.init();
+    lcd.backlight();
 
-    // DEBUG
-    // initializeSerial();
+    lcd.setCursor(2, 0);
+    lcd.print("SETA S.p.A.");
+    lcd.setCursor(1, 1);
+    lcd.print("Caricamento...");
 
-    initializeEthernet();
+    // Initialize Serial communications
+    // Serial.begin(9600);
+    // while (!Serial) continue;
+    // Serial.println("Comunicazione seriale stabilita");
+
+    byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+    if (!Ethernet.begin(mac)) {
+        Serial.println(F("Failed to configure Ethernet"));
+        return;
+    }
 
     connectToServer();
 
-    client.println(F("GET /codice/MO506 HTTP/1.0"));
+    // String reqStart = "GET /codice/";
+    // reqStart.concat(CODICE_FERMATA);
+    // reqStart.concat(" HTTP/1.0");
+    // client.println(reqStart);
+    client.println(F("GET /codice/MO2076 HTTP/1.0"));
     client.println(F("Host: setaapi2.bitrey.it"));
     client.println(F("Connection: close"));
     if (client.println() == 0) {
@@ -102,15 +93,16 @@ void setup() {
 
     // Allocate the JSON document
     // Use arduinojson.org/v6/assistant to compute the capacity.
-    const PROGMEM size_t capacity = 100;
+    const size_t capacity = JSON_OBJECT_SIZE(3) + 50;
     //  JSON_OBJECT_SIZE(2) + 40;
 
-    StaticJsonDocument<capacity> PROGMEM doc;
+    // StaticJsonDocument<capacity> doc;
+    DynamicJsonDocument doc(capacity);
 
     // Parse JSON object
     DeserializationError error = deserializeJson(doc, client);
     if (error) {
-        Serial.print(F("deserializeJson() failed: "));
+        Serial.print(F("setup deserializeJson() failed: "));
         Serial.println(error.c_str());
         return;
     }
@@ -119,12 +111,7 @@ void setup() {
 
     strcpy(nomeFermata, doc["nome"]);
     strcpy(oraAttuale, doc["orario"]);
-    //  nomeFermata = doc["nome"];
-    //  Calcola centro
-    // Serial.println(F("Nome fermata:"));
-    // Serial.println(nomeFermata);
-    // Serial.println(F("Orario:"));
-    // Serial.println(oraAttuale);
+
     lcd.setCursor(cursoreFermata(), 0);
     lcd.print(nomeFermata);
     lcd.setCursor(5, 1);
@@ -134,12 +121,26 @@ void setup() {
     client.stop();
 
     delay(2000);
+
+    hasStarted = true;
 }
 
 void loop() {
+    if (!hasStarted) return;
+
+    delay(1000);
+
     connectToServer();
 
-    client.println(F("GET /corse/mo/MO506?corseFermataOpposta=si HTTP/1.0"));
+    // delay(1000);
+
+    // String reqStart = "GET /corse/mo/";
+    // reqStart.concat(CODICE_FERMATA);
+    // reqStart.concat("?corseFermataOpposta=");
+    // reqStart.concat(FERMATA_OPPOSTA);
+    // reqStart.concat(" HTTP/1.0");
+    // client.println(reqStart);
+    client.println(F("GET /corse/mo/MO2076?corseFermataOpposta=si HTTP/1.0"));
     client.println(F("Host: setaapi2.bitrey.it"));
     client.println(F("Connection: close"));
     if (client.println() == 0) {
@@ -153,14 +154,19 @@ void loop() {
 
     // Allocate the JSON document
     // Use arduinojson.org/v6/assistant to compute the capacity.
-    const PROGMEM size_t capacity = 600;
+    const size_t capacity = JSON_ARRAY_SIZE(4) + JSON_OBJECT_SIZE(7) +
+                            3 * JSON_OBJECT_SIZE(9) + 240;
+    // Serial.println("alloco");
 
-    StaticJsonDocument<capacity> PROGMEM doc;
+    // StaticJsonDocument<capacity> doc;
+    DynamicJsonDocument doc(capacity);
+
+    // Serial.println("allocato");
 
     // Parse JSON object
     DeserializationError error = deserializeJson(doc, client);
     if (error) {
-        Serial.print(F("deserializeJson() failed: "));
+        Serial.print(F("loop deserializeJson() failed: "));
         Serial.println(error.c_str());
         return;
     }
